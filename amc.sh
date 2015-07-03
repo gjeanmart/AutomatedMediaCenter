@@ -1,11 +1,17 @@
 #!/bin/bash
 
 ##########################################################################
-# Script 			: Automated Media Center
-# Description 		: 
-# Date 				: 2015-02-16
-# Version 			: 0.1.0
-# Author 			: Grégoire JEANMART [gregoire.jeanmart@gmail.com]
+# Script 				: Automated Media Integration
+# Description 			: 
+# Date de création		: 2015-02-16
+# Date de modification	: 2015-06-27
+# Version 				: 0.3.0
+# Author 				: Grégoire JEANMART [gregoire.jeanmart@gmail.com]
+##########################################################################
+# Historique
+# 2015-02-16 0.1.0 : Création
+# 2015-06-22 0.2.0 : Passge à Filebot 4.6 (Java 8)
+# 2015-06-27 0.3.0 : Add time to filebot command
 ##########################################################################
 # Parameters
 # 	- 1 : filePath 
@@ -20,13 +26,13 @@
 #	- Gestion des langues
 ##########################################################################
 
-LOG_FILE="/data/Private/06-Divers/dev/shell/amc.log"
+LOG_FILE="/data/Private/06-Divers/dev/shell/ami.log"
 
-echo "$(date +'%Y-%m-%d %T') INFO ### Automated Media Center v.0.1.0 ###" >> $LOG_FILE
+echo "$(date +'%Y-%m-%d %T') INFO ### Automated Media Integration v.0.3.0 ###" >> $LOG_FILE
 
-nbArgsWaited=1
-if [ "$#" -ne "$nbArgsWaited" ]; then
-	echo "$(date +'%Y-%m-%d %T') ERROR[10] Bad number of arguments ($#) : $nbArgsWaited waited" >> $LOG_FILE
+nbArgsExpected=1
+if [ "$#" -ne "$nbArgsExpected" ]; then
+	echo "$(date +'%Y-%m-%d %T') ERROR[10] Bad number of arguments ($#) : $nbArgsExpected expected" >> $LOG_FILE
 	
 	echo "$(date +'%Y-%m-%d %T') INFO END KO 10" >> $LOG_FILE
 	exit 10
@@ -43,8 +49,7 @@ echo "$(date +'%Y-%m-%d %T') INFO filePath = $filePath" >> $LOG_FILE
 ##########################################################################
 ## Initialization variables
 java=java
-filebot_jar="/data/Private/06-Divers/dev/shell/FileBot_4.2.jar"
-filebot_command="/data/Private/06-Divers/dev/prog/FileBot_4.2-portable/filebot.sh"
+filebot_command="filebot"
 
 ## Log level : all, config, info, warning
 logLevel=all
@@ -81,6 +86,11 @@ serieLimitMax=700000000
 cleanCache="y"
 # Print Version [yes or no]
 printVersion="y"
+# Clean prefs [yes or no] : reset application settings
+cleanPrefs="y"
+# Print Sys Info [yes or no]
+printSysInfo="y"
+
 ##########################################################################
 
 ##########################################################################
@@ -104,30 +114,11 @@ fi
 ##########################################################################
 ## MAIN
 
-# Calcul of the mode (MOVIE or TW_SHOW)
-#fileSize=$(stat -c %s "$filePath")
-#if [ "$fileSize" -ge "$serieLimitMax" ]
-#then
-#	mode="Movie"
-#	db=$dbMovie
-#	output=$moviePath
-#	format=$movieFormat
-#elif [ $fileSize -ge $serieLimitMin ]
-#then
-#	mode="TV"
-#	db=$dbSerie
-#	output=$seriePath
-#	format=$serieFormat
-#else
-#	mode=""
-#
-#fi
-
 # Print Filebot version
 if [ "$printVersion" == "y" ]
 then
 	echo "$(date +'%Y-%m-%d %T') DEBUG $filebot_command -version" >> $LOG_FILE
-	$filebot_command -version >> $LOG_FILE
+	$filebot_command -version  >> $LOG_FILE 2>&1
 
 fi
 
@@ -135,17 +126,25 @@ fi
 if [ "$cleanCache" == "y" ]
 then
 	echo "$(date +'%Y-%m-%d %T') DEBUG $filebot_command -clear-cache" >> $LOG_FILE
-	$filebot_command -clear-cache >> $LOG_FILE
+	$filebot_command -clear-cache  >> $LOG_FILE 2>&1
+fi
+
+# Reset application settings
+if [ "$cleanPrefs" == "y" ]
+then
+	echo "$(date +'%Y-%m-%d %T') DEBUG $filebot_command -clear-pref" >> $LOG_FILE
+	$filebot_command -clear-prefs  >> $LOG_FILE 2>&1
+fi
+
+# Print System Info
+if [ "$printSysInfo" == "y" ]
+then
+	echo "$(date +'%Y-%m-%d %T') DEBUG $filebot_command -script fn:sysinfo" >> $LOG_FILE
+	$filebot_command -script fn:sysinfo  >> $LOG_FILE 2>&1
 fi
 
 # Search & Rename file with Filebot
 echo "$(date +'%Y-%m-%d %T') INFO Search & rename $filePath [type=$fileType] with Filebot" >> $LOG_FILE
-
-#if [ "$mode" != "" ]
-#then
-	#echo "$(date +'%Y-%m-%d %T') DEBUG $java -jar $filebot_jar -non-strict -r -rename \"$filePath\" --q \"$fileName\" --output \"$output\" --format \"$format\" --db \"$db\" --encoding \"$encoding\" --log \"$logLevel\" --action \"$action\" " >> $LOG_FILE
-	#$java -jar $filebot_jar -non-strict -r -rename "$filePath" --q "$fileName" --output "$output" --format "$format" --db "$db" --encoding "$encoding" --log "$logLevel" --action "$action" >> $LOG_FILE 2>&1
-	#filebotExitCode=$? 
 
 echo "$(date +'%Y-%m-%d %T') DEBUG $filebot_command -script fn:amc --action move --conflict $conflictResolution -non-strict --def \"seriesFormat=$seriePath$serieFormat\" --def \"movieFormat=$moviePath$movieFormat\" --def \"clean=y\" --def \"excludeList=$excludeList\" --def \"xbmc=$xbmc\" --def \"minFileSize=$serieLimitMin\" \"ut_kind=multi\" \"ut_dir=$filePath\"  " >> $LOG_FILE
 $filebot_command -script fn:amc --action move --conflict $conflictResolution -non-strict --def "seriesFormat=$seriePath$serieFormat" --def "movieFormat=$moviePath$movieFormat" --def "clean=y" --def "excludeList=$excludeList" --def "xbmc=$xbmc" --def "minFileSize=$serieLimitMin" "ut_kind=multi" "ut_dir=$filePath" >> $LOG_FILE 2>&1
